@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة القرآن الكريم - جميع القراء والسور</title>
+    <style>
+        :root {
+            --primary-color: #0d5c3a;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 25px 0;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .controls-container {
+            max-width: 600px;
+            margin: 0 auto 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid var(--primary-color);
+            border-radius: 5px;
+            outline: none;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .player-card {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            border-top: 5px solid var(--primary-color);
+            display: none; /* مخفي حتى يتم التحميل */
+        }
+
+        .player-card h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        audio {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .download-btn:hover {
+            background-color: #083d26;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>منصة استماع وتحميل القرآن الكريم</h1>
+        <p>اختر القارئ والسورة للاستماع والتحميل المباشر</p>
+    </header>
+
+    <div class="controls-container">
+        <div>
+            <label for="reciterSelect">اختر القارئ:</label>
+            <select id="reciterSelect" onchange="updateAudio()">
+                <option value="">-- جاري تحميل قائمة القراء... --</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="surahSelect">اختر السورة:</label>
+            <select id="surahSelect" onchange="updateAudio()">
+                <option value="">-- جاري تحميل قائمة السور... --</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- مشغل الصوت وبطاقة التحميل -->
+    <div class="player-card" id="playerCard">
+        <h2 id="currentTitle">سورة...</h2>
+        <p id="currentReciter">القارئ...</p>
+        
+        <audio id="audioPlayer" controls>
+            <source id="audioSource" src="" type="audio/mpeg">
+            متصفحك لا يدعم مشغل الصوت.
+        </audio>
+        
+        <br>
+        <a id="downloadBtn" href="#" target="_blank" download class="download-btn">تحميل السورة MP3</a>
+    </div>
+
+    <script>
+        const reciterSelect = document.getElementById('reciterSelect');
+        const surahSelect = document.getElementById('surahSelect');
+        const playerCard = document.getElementById('playerCard');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioSource = document.getElementById('audioSource');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const currentTitle = document.getElementById('currentTitle');
+        const currentReciter = document.getElementById('currentReciter');
+
+        let recitersData = [];
+        let surahsData = [];
+
+        // 1. جلب قائمة القراء والسور عند فتح الصفحة
+        window.onload = async function() {
+            try {
+                // جلب قائمة القراء
+                const recitersResponse = await fetch('https://mp3quran.net/api/v3/reciters?language=ar');
+                const recitersJson = await recitersResponse.json();
+                recitersData = recitersJson.reciters;
+
+                // جلب قائمة السور
+                const surahsResponse = await fetch('https://api.alquran.cloud/v1/surah');
+                const surahsJson = await surahsResponse.json();
+                surahsData = surahsJson.data;
+
+                // تعبئة قائمة القراء
+                reciterSelect.innerHTML = '<option value="">-- اختر القارئ --</option>';
+                recitersData.forEach(reciter => {
+                    if (reciter.moshaf && reciter.moshaf.length > 0) {
+                        let option = document.createElement('option');
+                        option.value = reciter.id;
+                        option.textContent = reciter.name;
+                        reciterSelect.appendChild(option);
+                    }
+                });
+
+                // تعبئة قائمة السور
+                surahSelect.innerHTML = '<option value="">-- اختر السورة --</option>';
+                surahsData.forEach(surah => {
+                    let option = document.createElement('option');
+                    option.value = surah.number;
+                    option.textContent = `${surah.number}. ${surah.name}`;
+                    surahSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                alert('حدث خطأ أثناء جلب البيانات، يرجى التأكد من الاتصال بالإنترنت.');
+                console.error(error);
+            }
+        };
+
+        // 2. تحديث رابط الصوت عند اختيار القارئ والسورة
+        function updateAudio() {
+            const selectedReciterId = reciterSelect.value;
+            const selectedSurahNum = surahSelect.value;
+
+            if (selectedReciterId && selectedSurahNum) {
+                const reciter = recitersData.find(r => r.id == selectedReciterId);
+                const surah = surahsData.find(s => s.number == selectedSurahNum);
+
+                // الحصول على رابط الخادم الخاص بالقارئ (المصحف حفص عن عاصم افتراضياً)
+                const moshaf = reciter.moshaf[0]; 
+                const serverUrl = moshaf.server;
+
+                // تنسيق رقم السورة ليصبح من 3 أرقام (مثلاً 1 يصبح 001)
+                const formattedSurahNum = String(selectedSurahNum).padStart(3, '0');
+                
+                // الرابط المباشر للملف الصوتي
+                const audioUrl = `${serverUrl}${formattedSurahNum}.mp3`;
+
+                // تحديث المشغل وزر التحميل
+                audioSource.src = audioUrl;
+                audioPlayer.load();
+                
+                downloadBtn.href = audioUrl;
+                downloadBtn.setAttribute('download', `${surah.name} - ${reciter.name}.mp3`);
+
+                currentTitle.innerText = `سورة ${surah.name}`;
+                currentReciter.innerText = `القارئ: ${reciter.name}`;
+
+                // إظهار البطاقة
+                playerCard.style.display = 'block';
+            }
+        }
+    </script>
+
+</body>
+</html>
